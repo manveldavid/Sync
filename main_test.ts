@@ -1,35 +1,32 @@
 import { expect } from "jsr:@std/expect";
-import { exists } from "jsr:@std/fs/exists"
-import { testSyncDirectories } from "./main.ts"
+import { exists } from "jsr:@std/fs/exists";
+import { testSyncDirectories } from "./main.ts";
 
-Deno.test("copy test", async () => 
-  {
-    await clearTestFileStruct();
-    await createTestFileStruct();
+Deno.test("copy test", async () => {
+  await clearTestFileStruct();
+  await createTestFileStruct();
 
-    await testSyncDirectories("a", "b");
+  await testSyncDirectories("a", "b");
 
-    expect(await Deno.readTextFile("b/a.txt")).toBe("hello");
-    expect(await Deno.readTextFile("b/aa/aa.txt")).toBe("world");
-    
-    await clearTestFileStruct();
-  });
+  expect(await Deno.readTextFile("b/a.txt")).toBe("hello");
+  expect(await Deno.readTextFile("b/aa/aa.txt")).toBe("world");
 
-Deno.test("delete test", async () => 
-  {
-    await clearTestFileStruct();
-    await createTestFileStruct();
+  await clearTestFileStruct();
+});
 
-    await testSyncDirectories("b", "a");
+Deno.test("delete test", async () => {
+  await clearTestFileStruct();
+  await createTestFileStruct();
 
-    expect(await exists("a/a.txt")).toBe(false);
-    expect(await exists("a/aa/aa.txt")).toBe(false);
-    
-    await clearTestFileStruct();
-  });
+  await testSyncDirectories("b", "a");
 
-  
-async function createTestFileStruct() : Promise<void> {
+  expect(await exists("a/a.txt")).toBe(false);
+  expect(await exists("a/aa/aa.txt")).toBe(false);
+
+  await clearTestFileStruct();
+});
+
+async function createTestFileStruct(): Promise<void> {
   await Deno.mkdir("a");
   await Deno.mkdir("a/aa");
   await Deno.writeTextFile("a/a.txt", "hello");
@@ -38,9 +35,11 @@ async function createTestFileStruct() : Promise<void> {
 }
 
 async function clearTestFileStruct() {
-  if(await exists("a"))
-    await Deno.remove("a", {recursive:true});
+  if (await exists("a")) {
+    await Deno.remove("a", { recursive: true });
+  }
 
-  if(await exists("b"))
-    await Deno.remove("b", {recursive:true});
+  if (await exists("b")) {
+    await Deno.remove("b", { recursive: true });
+  }
 }
