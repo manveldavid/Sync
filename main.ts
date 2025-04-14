@@ -257,6 +257,6 @@ if (import.meta.main) {
   for(const i in syncConfigs)
     await getSyncPromise(syncConfigs[i]);
   
-  //await Promise.all(syncConfigs.map(el => getSyncPromise(el)));
-  await Deno.stdin.read(new Uint8Array(1))
+  console.log("Press enter to exit...");
+  await Deno.stdin.read(new Uint8Array(1));
 }
