@@ -1,0 +1,8 @@
+{
+    "imports": {
+        "@std/fs/exists": "jsr:@std/fs/exists",
+        "@std/fs/walk": "jsr:@std/fs/walk",
+        "@std/fs/copy": "jsr:@std/fs/copy",
+        "@std/expect": "jsr:@std/expect"
+    }
+}
