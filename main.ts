@@ -8,6 +8,8 @@ interface Config {
   result: string;
 }
 
+const textEncoder = new TextEncoder();
+
 export async function testSyncDirectories(
   from: string,
   to: string,
@@ -39,63 +41,71 @@ async function syncDirectories(config: Config): Promise<void> {
   const filesToDelete = getFilesToDelete(config, fromFiles, toFiles);
   const notExistedDirs = await getNotExistedDirs(filesToCopy.map((c) => c.to));
 
-  console.log(
-    `\t\t(fromFiles-${fromFiles.length} toCopy-${filesToCopy.length} toDelete-${filesToDelete.length})`,
-  );
-
-  if (filesToCopy.length == 0 && filesToDelete.length == 0) {
+  if (filesToCopy.length == 0 && filesToDelete.length == 0)
     return;
-  }
 
-  console.log("\t\tSyncing...");
+  console.log(
+    `\t\tSyncing (fromFiles-${fromFiles.length} toCopy-${filesToCopy.length} toDelete-${filesToDelete.length})`
+  );
+  let lastMessage = "";
 
   if (notExistedDirs.length > 0) {
-    console.log("\t\tAllocate directories...");
-
+    let iterator = 0;
     for (const i in notExistedDirs) {
-      const dir = notExistedDirs[i];
-
       try {
-        console.log(`\t\t\t${dir}`);
-        await Deno.mkdir(dir, { recursive: true });
+        lastMessage = await printInline(
+          `\t\tAllocate directories [${Math.round(100 * ++iterator / notExistedDirs.length)}]`, 
+          lastMessage
+        );
+        await Deno.mkdir(notExistedDirs[i], { recursive: true });
       } catch (error) {
-        console.error("Create directory error: ", dir, error);
+        console.error("Create directory error: ", notExistedDirs[i], error);
       }
     }
+    console.log();
   }
+  
 
   if (filesToCopy.length > 0) {
-    console.log("\t\tCopy files...");
-
+    let iterator = 0;
     for (const i in filesToCopy) {
-      const config = filesToCopy[i];
-
       try {
-        console.log(`\t\t\t${config.to}`);
-        await copy(config.from, config.to, {
+        lastMessage = await printInline(
+          `\t\tCopy files [${Math.round(100 * ++iterator / filesToCopy.length)}]`, 
+          lastMessage
+        );
+        await copy(filesToCopy[i].from, filesToCopy[i].to, {
           overwrite: true,
           preserveTimestamps: true,
         });
       } catch (error) {
-        console.error("Copy file error: ", config.from, config.to, error);
+        console.error("Copy file error: ", filesToCopy[i].from, filesToCopy[i].to, error);
       }
     }
+    console.log();
   }
 
   if (filesToDelete.length > 0) {
-    console.log("\t\tRemove files...");
-
+    let iterator = 0;
     for (const i in filesToDelete) {
-      const config = filesToDelete[i];
-
       try {
-        console.log(`\t\t\t${config.to}`);
-        await removeFileAndEmptyDir(config.to);
+        lastMessage = await printInline(
+          `\t\tRemove files [${Math.round(100 * ++iterator / filesToDelete.length)}]`, 
+          lastMessage
+        );
+        await removeFileAndEmptyDir(filesToDelete[i].to);
       } catch (error) {
-        console.error("Remove file error: ", config.to, error);
+        console.error("Remove file error: ", filesToDelete[i].to, error);
       }
     }
+    console.log();
   }
+}
+
+async function printInline(message:string, lastMessage:string):Promise<string> {
+  await Deno.stdout.write(textEncoder.encode("\r".repeat(lastMessage.length)))
+  await Deno.stdout.write(textEncoder.encode(message));
+  return message;
 }
 
 async function removeFileAndEmptyDir(path: string): Promise<void> {
@@ -156,7 +166,7 @@ async function getFilesToCopy(
       });
     } else if (
       (await Deno.stat(fromFiles[i])).size !==
-        (await Deno.stat(config.to + fileRelativePath)).size
+      (await Deno.stat(config.to + fileRelativePath)).size
     ) {
       filesToCopy.push({
         from: fromFiles[i],
