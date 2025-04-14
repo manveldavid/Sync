@@ -1,6 +1,6 @@
-import { exists } from "@std/fs/exists";
-import { walk } from "@std/fs/walk";
-import { copy } from "@std/fs/copy";
+import { exists } from "jsr:@std/fs/exists";
+import { walk } from "jsr:@std/fs/walk";
+import { copy } from "jsr:@std/fs/copy";
 
 interface Config {
   from: string;
@@ -39,65 +39,65 @@ async function syncDirectories(config: Config): Promise<void> {
 
   const filesToCopy = await getFilesToCopy(config, fromFiles, toFiles);
   const filesToDelete = getFilesToDelete(config, fromFiles, toFiles);
-  const notExistedDirs = await getNotExistedDirs(filesToCopy.map((c) => c.to));
+  const notExistedDirs = await getNotExistedDirs(new Set(filesToCopy.values().map((c) => c.to)));
 
-  if (filesToCopy.length == 0 && filesToDelete.length == 0) {
+  if (filesToCopy.size == 0 && filesToDelete.size == 0) {
     console.log("\t\tAlready synchronized -> Skip!");
     return;
   }
 
   console.log(
-    `\t\tSyncing (fromFiles-${fromFiles.length} toCopy-${filesToCopy.length} toDelete-${filesToDelete.length})`
+    `\t\tSyncing (fromFiles-${fromFiles.size} toCopy-${filesToCopy.size} toDelete-${filesToDelete.size})`
   );
   let lastMessage = "";
 
-  if (notExistedDirs.length > 0) {
+  if (notExistedDirs.size > 0) {
     let iterator = 0;
-    for (const i in notExistedDirs) {
+    for (const el of notExistedDirs) {
       try {
         lastMessage = await printInline(
-          `\t\tAllocate directories [${Math.round(100 * ++iterator / notExistedDirs.length)}%]`, 
+          `\t\tAllocate directories [${Math.round(100 * ++iterator / notExistedDirs.size)}%]`, 
           lastMessage
         );
-        await Deno.mkdir(notExistedDirs[i], { recursive: true });
+        await Deno.mkdir(el, { recursive: true });
       } catch (error) {
-        console.error("\nCreate directory error: ", notExistedDirs[i], error);
+        console.error("\nCreate directory error: ", el, error);
       }
     }
     console.log();
   }
   
 
-  if (filesToCopy.length > 0) {
+  if (filesToCopy.size > 0) {
     let iterator = 0;
-    for (const i in filesToCopy) {
+    for (const el of filesToCopy) {
       try {
         lastMessage = await printInline(
-          `\t\tCopy files           [${Math.round(100 * ++iterator / filesToCopy.length)}%]`, 
+          `\t\tCopy files           [${Math.round(100 * ++iterator / filesToCopy.size)}%]`, 
           lastMessage
         );
-        await copy(filesToCopy[i].from, filesToCopy[i].to, {
+        await copy(el.from, el.to, {
           overwrite: true,
           preserveTimestamps: true,
         });
       } catch (error) {
-        console.error("\nCopy file error: ", filesToCopy[i].from, filesToCopy[i].to, error);
+        console.error("\nCopy file error: ", el.from, el.to, error);
       }
     }
     console.log();
   }
 
-  if (filesToDelete.length > 0) {
+  if (filesToDelete.size > 0) {
     let iterator = 0;
-    for (const i in filesToDelete) {
+    for (const el of filesToDelete) {
       try {
         lastMessage = await printInline(
-          `\t\tRemove files         [${Math.round(100 * ++iterator / filesToDelete.length)}%]`, 
+          `\t\tRemove files         [${Math.round(100 * ++iterator / filesToDelete.size)}%]`, 
           lastMessage
         );
-        await removeFileAndEmptyDir(filesToDelete[i].to);
+        await removeFileAndEmptyDir(el.to);
       } catch (error) {
-        console.error("\nRemove file error: ", filesToDelete[i].to, error);
+        console.error("\nRemove file error: ", el.to, error);
       }
     }
     console.log();
@@ -116,28 +116,28 @@ async function removeFileAndEmptyDir(path: string): Promise<void> {
   const dirPath = path.slice(0, path.lastIndexOf("/"));
   const filesInDir = await getFilePathsFromDirRecursively(dirPath);
 
-  if (filesInDir.length == 0) 
+  if (filesInDir.size == 0) 
     await Deno.remove(dirPath, { recursive: true });
 }
 
 function getFilesToDelete(
   config: Config,
-  fromFiles: Array<string>,
-  toFiles: Array<string>,
-): Array<Config> {
-  const fromFilesRelativePaths = fromFiles.map((file) =>
+  fromFiles: Set<string>,
+  toFiles: Set<string>,
+): Set<Config> {
+  const fromFilesRelativePaths = new Set(fromFiles.values().map((file) =>
     getRelativePath(config.from, file)
-  );
+  ));
 
-  const filesToDelete: Array<Config> = [];
+  const filesToDelete: Set<Config> = new Set<Config>();
 
-  for (const i in toFiles) {
-    const fileRelativePath = getRelativePath(config.to, toFiles[i]);
+  for (const file of toFiles) {
+    const fileRelativePath = getRelativePath(config.to, file);
 
-    if (!fromFilesRelativePaths.includes(fileRelativePath)) {
-      filesToDelete.push({
+    if (!fromFilesRelativePaths.has(fileRelativePath)) {
+      filesToDelete.add({
         from: "",
-        to: toFiles[i],
+        to: file,
         result: "file not exsists in source",
       });
     }
@@ -148,30 +148,30 @@ function getFilesToDelete(
 
 async function getFilesToCopy(
   config: Config,
-  fromFiles: Array<string>,
-  toFiles: Array<string>,
-): Promise<Array<Config>> {
-  const toFilesRelativePaths = toFiles.map((file) =>
+  fromFiles: Set<string>,
+  toFiles: Set<string>,
+): Promise<Set<Config>> {
+  const toFilesRelativePaths = new Set(toFiles.values().map((file) =>
     getRelativePath(config.to, file)
-  );
+  ));
 
-  const filesToCopy: Array<Config> = [];
+  const filesToCopy: Set<Config> = new Set<Config>();
 
-  for (const i in fromFiles) {
-    const fileRelativePath = getRelativePath(config.from, fromFiles[i]);
+  for (const file of fromFiles.values()) {
+    const fileRelativePath = getRelativePath(config.from, file);
 
-    if (!toFilesRelativePaths.includes(fileRelativePath)) {
-      filesToCopy.push({
-        from: fromFiles[i],
+    if (!toFilesRelativePaths.has(fileRelativePath)) {
+      filesToCopy.add({
+        from: file,
         to: config.to + fileRelativePath,
         result: "copy - file not exist in destination",
       });
     } else if (
-      (await Deno.stat(fromFiles[i])).size !==
+      (await Deno.stat(file)).size !==
       (await Deno.stat(config.to + fileRelativePath)).size
     ) {
-      filesToCopy.push({
-        from: fromFiles[i],
+      filesToCopy.add({
+        from: file,
         to: config.to + fileRelativePath,
         result: "copy - bytes not match",
       });
@@ -249,12 +249,12 @@ function getSyncPromise(el: Config): Promise<void> {
 
 async function getFilePathsFromDirRecursively(
   path: string,
-): Promise<Array<string>> {
-  const files = [];
+): Promise<Set<string>> {
+  const files = new Set<string>();
   if ((await Deno.stat(path)).isDirectory && await exists(path)) {
     for await (const walkEntry of walk(path)) {
       if (walkEntry.isFile) {
-        files.push(await getCleanPath(walkEntry.path));
+        files.add(await getCleanPath(walkEntry.path));
       }
     }
   }
@@ -262,14 +262,14 @@ async function getFilePathsFromDirRecursively(
   return files;
 }
 
-async function getNotExistedDirs(files: Array<string>): Promise<Array<string>> {
-  const notExistedDirs = [];
+async function getNotExistedDirs(files: Set<string>): Promise<Set<string>> {
+  const notExistedDirs : Set<string> = new Set<string>();
 
-  for (const i in files) {
-    const dir = files[i].slice(0, files[i].lastIndexOf("/"));
+  for (const file of files) {
+    const dir = file.slice(0, file.lastIndexOf("/"));
 
     if (!(await exists(dir))) {
-      notExistedDirs.push(dir);
+      notExistedDirs.add(dir);
     }
   }
 
@@ -299,10 +299,11 @@ if (import.meta.main) {
   for (const i in syncConfigs) {
     await getSyncPromise(syncConfigs[i]);
   }
+
   const timeSpan = (Date.now() - startTime);
   const minutes = Math.floor(timeSpan / (1000 * 60));
-  const seconds = timeSpan - minutes * (1000 * 60);
-  console.log(`\n\nCompleted in ${Math.floor(timeSpan / (1000 * 60))}\n\n`);
+  const seconds = (timeSpan - minutes * (1000 * 60))/1000;
+  console.log(`\n\nCompleted in ${minutes}min ${seconds}sec\n\n`);
 
   if (!fromCLI) {
     while (prompt("Press enter to exit...", "") != "");
