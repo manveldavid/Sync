@@ -1,6 +1,6 @@
-import { exists } from "jsr:@std/fs/exists";
-import { walk } from "jsr:@std/fs/walk";
-import { copy } from "jsr:@std/fs/copy";
+import { exists } from "@std/fs/exists";
+import { walk } from "@std/fs/walk";
+import { copy } from "@std/fs/copy";
 
 interface Config {
   from: string;
@@ -277,6 +277,7 @@ async function getNotExistedDirs(files: Array<string>): Promise<Array<string>> {
 }
 
 if (import.meta.main) {
+  const startTime = Date.now();
   let syncConfigs = [] as Array<Config>;
   let fromCLI = false;
 
@@ -298,8 +299,10 @@ if (import.meta.main) {
   for (const i in syncConfigs) {
     await getSyncPromise(syncConfigs[i]);
   }
-
-  console.log("\n\nComplete!\n\n");
+  const timeSpan = (Date.now() - startTime);
+  const minutes = Math.floor(timeSpan / (1000 * 60));
+  const seconds = timeSpan - minutes * (1000 * 60);
+  console.log(`\n\nCompleted in ${Math.floor(timeSpan / (1000 * 60))}\n\n`);
 
   if (!fromCLI) {
     while (prompt("Press enter to exit...", "") != "");
