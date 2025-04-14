@@ -54,12 +54,12 @@ async function syncDirectories(config: Config): Promise<void> {
     for (const i in notExistedDirs) {
       try {
         lastMessage = await printInline(
-          `\t\tAllocate directories [${Math.round(100 * ++iterator / notExistedDirs.length)}]`, 
+          `\t\tAllocate directories [${Math.round(100 * ++iterator / notExistedDirs.length)}%]`, 
           lastMessage
         );
         await Deno.mkdir(notExistedDirs[i], { recursive: true });
       } catch (error) {
-        console.error("Create directory error: ", notExistedDirs[i], error);
+        console.error("\nCreate directory error: ", notExistedDirs[i], error);
       }
     }
     console.log();
@@ -71,7 +71,7 @@ async function syncDirectories(config: Config): Promise<void> {
     for (const i in filesToCopy) {
       try {
         lastMessage = await printInline(
-          `\t\tCopy files           [${Math.round(100 * ++iterator / filesToCopy.length)}]`, 
+          `\t\tCopy files           [${Math.round(100 * ++iterator / filesToCopy.length)}%]`, 
           lastMessage
         );
         await copy(filesToCopy[i].from, filesToCopy[i].to, {
@@ -79,7 +79,7 @@ async function syncDirectories(config: Config): Promise<void> {
           preserveTimestamps: true,
         });
       } catch (error) {
-        console.error("Copy file error: ", filesToCopy[i].from, filesToCopy[i].to, error);
+        console.error("\nCopy file error: ", filesToCopy[i].from, filesToCopy[i].to, error);
       }
     }
     console.log();
@@ -90,12 +90,12 @@ async function syncDirectories(config: Config): Promise<void> {
     for (const i in filesToDelete) {
       try {
         lastMessage = await printInline(
-          `\t\tRemove files         [${Math.round(100 * ++iterator / filesToDelete.length)}]`, 
+          `\t\tRemove files         [${Math.round(100 * ++iterator / filesToDelete.length)}%]`, 
           lastMessage
         );
         await removeFileAndEmptyDir(filesToDelete[i].to);
       } catch (error) {
-        console.error("Remove file error: ", filesToDelete[i].to, error);
+        console.error("\nRemove file error: ", filesToDelete[i].to, error);
       }
     }
     console.log();
