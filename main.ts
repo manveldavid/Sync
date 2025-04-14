@@ -64,7 +64,7 @@ async function syncDirectories(config : Config) : Promise<void> {
       }));
   }
   
-  if(filesToDelete) {
+  if(filesToDelete.length > 0) {
     console.log("\t\tRemove files...")
     await Promise.all(filesToDelete.map(c => {
       try{
