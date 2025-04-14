@@ -41,8 +41,10 @@ async function syncDirectories(config: Config): Promise<void> {
   const filesToDelete = getFilesToDelete(config, fromFiles, toFiles);
   const notExistedDirs = await getNotExistedDirs(filesToCopy.map((c) => c.to));
 
-  if (filesToCopy.length == 0 && filesToDelete.length == 0)
+  if (filesToCopy.length == 0 && filesToDelete.length == 0) {
+    console.log("\t\tAlready synchronized -> Skip!");
     return;
+  }
 
   console.log(
     `\t\tSyncing (fromFiles-${fromFiles.length} toCopy-${filesToCopy.length} toDelete-${filesToDelete.length})`
