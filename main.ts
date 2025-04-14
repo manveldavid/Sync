@@ -71,7 +71,7 @@ async function syncDirectories(config: Config): Promise<void> {
     for (const i in filesToCopy) {
       try {
         lastMessage = await printInline(
-          `\t\tCopy files [${Math.round(100 * ++iterator / filesToCopy.length)}]`, 
+          `\t\tCopy files           [${Math.round(100 * ++iterator / filesToCopy.length)}]`, 
           lastMessage
         );
         await copy(filesToCopy[i].from, filesToCopy[i].to, {
@@ -90,7 +90,7 @@ async function syncDirectories(config: Config): Promise<void> {
     for (const i in filesToDelete) {
       try {
         lastMessage = await printInline(
-          `\t\tRemove files [${Math.round(100 * ++iterator / filesToDelete.length)}]`, 
+          `\t\tRemove files         [${Math.round(100 * ++iterator / filesToDelete.length)}]`, 
           lastMessage
         );
         await removeFileAndEmptyDir(filesToDelete[i].to);
