@@ -76,10 +76,7 @@ async function syncDirectories(config: Config): Promise<void> {
           `\t\tCopy files           [${Math.round(100 * ++iterator / filesToCopy.size)}%]`, 
           lastMessage
         );
-        await copy(el.from, el.to, {
-          overwrite: true,
-          preserveTimestamps: true,
-        });
+        await copy(el.from, el.to, { overwrite: true });
       } catch (error) {
         console.error("\nCopy file error: ", el.from, el.to, error);
       }

@@ -1,4 +1,9 @@
 {
+    "tasks": {
+        "dev": "deno run -A main.ts",
+        "test": "deno test -A",
+        "build": "deno compile --icon icon.ico -A main.ts"
+    },
     "imports": {
         "@std/fs/exists": "jsr:@std/fs/exists",
         "@std/fs/walk": "jsr:@std/fs/walk",
