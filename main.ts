@@ -303,6 +303,6 @@ if (import.meta.main) {
   console.log(`\n\nCompleted in ${minutes}min ${seconds}sec\n\n`);
 
   if (!fromCLI) {
-    while (prompt("Press enter to exit...", "") != "");
+    alert("Press enter to exit...");
   }
 }
