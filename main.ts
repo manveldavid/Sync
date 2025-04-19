@@ -197,6 +197,8 @@ function expandEnvironmentVariables(path: string, divider: string, variableMarke
         Deno.env.get(name.replaceAll(variableMarker, "")) :
         name) + divider
   }
+
+  path = path.slice(0, path.length-1)
   
   return path;
 }
