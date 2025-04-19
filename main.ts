@@ -192,7 +192,10 @@ function expandEnvironmentVariables(path: string, divider: string, variableMarke
   path = "";
 
   for(const name of variableNames) {
-    path += (Deno.env.get(name.replaceAll(variableMarker, "")) ?? name) + divider
+    path += 
+      (name.includes(variableMarker) ? 
+        Deno.env.get(name.replaceAll(variableMarker, "")) :
+        name) + divider
   }
   
   return path;
