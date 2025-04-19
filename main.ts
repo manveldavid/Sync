@@ -184,18 +184,33 @@ function getRelativePath(base: string, path: string): string {
   return relativePath;
 }
 
+function expandEnvironmentVariables(path: string, divider: string, variableMarker: string): string {
+  if(!path.includes(variableMarker))
+    return path;
+  
+  const variableNames = path.split(divider);
+  path = "";
+
+  for(const name of variableNames) {
+    path += (Deno.env.get(name.replaceAll(variableMarker, "")) ?? name) + divider
+  }
+  
+  return path;
+}
+
 async function getCleanPath(path: string): Promise<string> {
   const wrongDivider = "\\";
   const conventDivider = "/";
 
   path = path.replaceAll(wrongDivider, conventDivider);
+  path = expandEnvironmentVariables(path, conventDivider, "%")
+          .replaceAll(wrongDivider, conventDivider);
 
   if (
-    await exists(path) && (await Deno.stat(path)).isDirectory &&
-    path.at(-1) !== conventDivider
-  ) {
-    path += conventDivider;
-  }
+      await exists(path) && 
+      (await Deno.stat(path)).isDirectory && 
+      path.at(-1) !== conventDivider
+    ) path += conventDivider;
 
   return path;
 }
