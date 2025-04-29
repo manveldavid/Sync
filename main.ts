@@ -256,6 +256,11 @@ async function getCleanPath(path: string): Promise<string> {
   path = expandEnvironmentVariables(path, conventDivider, "%")
     .replaceAll(wrongDivider, conventDivider);
 
+  const backupUpperDir = "<backupUpperDir>";
+  path = path.replaceAll("..", backupUpperDir);
+  path = path.replaceAll("./", "");
+  path = path.replaceAll(backupUpperDir, "..");
+
   if (
     await exists(path) &&
     (await Deno.stat(path)).isDirectory &&
@@ -265,19 +270,17 @@ async function getCleanPath(path: string): Promise<string> {
   return path;
 }
 
-async function getConfigs(): Promise<Array<Config>> {
-  let syncConfigPath = Deno.cwd() + "/syncConfig.json";
-
-  if (!await exists(syncConfigPath)) {
+async function getConfigs(path: string): Promise<Array<Config>> {
+  if (!await exists(path)) {
     await Deno.writeTextFile(
-      syncConfigPath,
+      path,
       '[{"form":"formPath","to":"toPath"}]',
     );
   }
 
-  syncConfigPath = await getCleanPath(syncConfigPath);
+  path = await getCleanPath(path);
 
-  const configs = JSON.parse(await Deno.readTextFile(syncConfigPath)) as Array<
+  const configs = JSON.parse(await Deno.readTextFile(path)) as Array<
     Config
   >;
 
@@ -330,13 +333,22 @@ async function getNotExistedDirs(files: Set<string>): Promise<Set<string>> {
   return notExistedDirs;
 }
 
+function showSyncConfig(fromCLI: boolean, cliFrom: string, cliTo: string, syncConfigPath: string) {
+  console.clear();
+
+  if (!fromCLI)
+    console.log(`Sync config -> ${syncConfigPath}\n`);
+  else
+    console.log(`Sync (${cliFrom}) -> (${cliTo})\n`);
+}
+
 if (import.meta.main) {
+  const syncConfigPath = await getCleanPath(Deno.cwd() + "/syncConfig.json");
   const startTime = Date.now();
   let syncConfigs = [] as Array<Config>;
   let fromCLI = false;
-
   if (Deno.args[0] === undefined && Deno.args[1] === undefined) {
-    syncConfigs = await getConfigs();
+    syncConfigs = await getConfigs(syncConfigPath);
   } else {
     syncConfigs = [
       {
@@ -349,13 +361,14 @@ if (import.meta.main) {
   }
 
   validateConfigs(syncConfigs);
+  showSyncConfig(fromCLI, syncConfigs[0].from, syncConfigs[0].to, syncConfigPath);
 
   for (const i in syncConfigs) {
     await (syncConfigs[i] !== null
       ? syncDirectories(syncConfigs[i])
       : Promise.resolve());
-
-    console.clear();
+    
+    showSyncConfig(fromCLI, syncConfigs[0].from, syncConfigs[0].to, syncConfigPath);
   }
 
   const timeSpan = Date.now() - startTime;
@@ -363,7 +376,6 @@ if (import.meta.main) {
   const seconds = (timeSpan - minutes * (1000 * 60)) / 1000;
   console.log(`\x1b[FSync completed in ${minutes}min ${seconds}sec\n`);
 
-  if (!fromCLI) {
+  if (!fromCLI)
     alert("Press to exit");
-  }
 }
