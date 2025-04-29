@@ -5,10 +5,8 @@ import { copy } from "jsr:@std/fs/copy";
 interface Config {
   from: string;
   to: string;
-  result: string;
+  reason: string;
 }
-
-const textEncoder = new TextEncoder();
 
 export async function testSyncDirectories(
   from: string,
@@ -17,7 +15,7 @@ export async function testSyncDirectories(
   return await syncDirectories({
     from: from,
     to: to,
-    result: "run from tests",
+    reason: "run from tests",
   });
 }
 
@@ -30,57 +28,79 @@ async function syncDirectories(config: Config): Promise<void> {
     config.to = await getCleanPath(config.to);
   }
 
-  console.log(
-    `\nSync\n\tFrom: ${config.from}\n\tTo:   ${config.to}\n\n\t\tCalculate difference...`,
+  let lastMessage = "";
+  console.log(`Sync From: ${config.from}\n     To:   ${config.to}\n`);
+  lastMessage = printInline(
+    "     Calculate difference...",
+    lastMessage,
   );
 
   const fromFiles = await getFilePathsFromDirRecursively(config.from);
   const toFiles = await getFilePathsFromDirRecursively(config.to);
-
   const filesToCopy = await getFilesToCopy(config, fromFiles, toFiles);
   const filesToDelete = getFilesToDelete(config, fromFiles, toFiles);
-  const notExistedDirs = await getNotExistedDirs(new Set(filesToCopy.values().map((c) => c.to)));
+  const notExistedDirs = await getNotExistedDirs(
+    new Set(filesToCopy.values().map((c) => c.to)),
+  );
 
   if (filesToCopy.size == 0 && filesToDelete.size == 0) {
-    console.log("\t\tAlready synchronized -> Skip!");
+    lastMessage = printInline(
+      "     Done! (Already synchronized)",
+      lastMessage,
+    );
+
     return;
   }
 
-  console.log(
-    `\t\tSyncing (fromFiles-${fromFiles.size} toCopy-${filesToCopy.size} toDelete-${filesToDelete.size})`
+  lastMessage = printInline(
+    `     Calculated (src:${fromFiles.size} copy:${filesToCopy.size} del:${filesToDelete.size})`,
+    lastMessage,
   );
-  let lastMessage = "";
+  console.log();
 
   if (notExistedDirs.size > 0) {
     let iterator = 0;
     for (const el of notExistedDirs) {
       try {
-        lastMessage = await printInline(
-          `\t\tAllocate directories [${Math.round(100 * ++iterator / notExistedDirs.size)}%]`, 
-          lastMessage
+        lastMessage = printInline(
+          `     Allocate     [${
+            Math.round(100 * ++iterator / notExistedDirs.size)
+          }%] (${el})`,
+          lastMessage,
         );
         await Deno.mkdir(el, { recursive: true });
       } catch (error) {
         console.error("\nCreate directory error: ", el, error);
       }
     }
+
+    lastMessage = printInline(
+      `     Allocate     [100%]`,
+      lastMessage,
+    );
     console.log();
   }
-  
 
   if (filesToCopy.size > 0) {
     let iterator = 0;
     for (const el of filesToCopy) {
       try {
-        lastMessage = await printInline(
-          `\t\tCopy files           [${Math.round(100 * ++iterator / filesToCopy.size)}%]`, 
-          lastMessage
+        lastMessage = printInline(
+          `     Copy files   [${
+            Math.round(100 * ++iterator / filesToCopy.size)
+          }%] (${el.from})`,
+          lastMessage,
         );
         await copy(el.from, el.to, { overwrite: true });
       } catch (error) {
         console.error("\nCopy file error: ", el.from, el.to, error);
       }
     }
+
+    lastMessage = printInline(
+      `     Copy files   [100%]`,
+      lastMessage,
+    );
     console.log();
   }
 
@@ -88,22 +108,42 @@ async function syncDirectories(config: Config): Promise<void> {
     let iterator = 0;
     for (const el of filesToDelete) {
       try {
-        lastMessage = await printInline(
-          `\t\tRemove files         [${Math.round(100 * ++iterator / filesToDelete.size)}%]`, 
-          lastMessage
+        lastMessage = printInline(
+          `     Remove files [${
+            Math.round(100 * ++iterator / filesToDelete.size)
+          }%] (${el.to})`,
+          lastMessage,
         );
         await removeFileAndEmptyDir(el.to);
       } catch (error) {
         console.error("\nRemove file error: ", el.to, error);
       }
     }
+
+    lastMessage = printInline(
+      `     Remove files [100%]`,
+      lastMessage,
+    );
     console.log();
   }
+  console.log("\x1b[F     Done!");
 }
 
-async function printInline(message:string, lastMessage:string):Promise<string> {
-  await Deno.stdout.write(textEncoder.encode("\r".repeat(lastMessage.length)))
-  await Deno.stdout.write(textEncoder.encode(message));
+function printInline(message: string, lastMessage: string): string {
+  try {
+    const consoleWidth = Deno.consoleSize().columns;
+
+    if (message.length > consoleWidth) {
+      message = message.slice(0, consoleWidth);
+    }
+  } catch { /*if not provided -> skip!*/ }
+
+  if (message.length < lastMessage.length) {
+    message += " ".repeat(lastMessage.length - message.length);
+  }
+
+  console.log(`\x1b[F${message}`);
+
   return message;
 }
 
@@ -113,8 +153,9 @@ async function removeFileAndEmptyDir(path: string): Promise<void> {
   const dirPath = path.slice(0, path.lastIndexOf("/"));
   const filesInDir = await getFilePathsFromDirRecursively(dirPath);
 
-  if (filesInDir.size == 0) 
+  if (filesInDir.size == 0) {
     await Deno.remove(dirPath, { recursive: true });
+  }
 }
 
 function getFilesToDelete(
@@ -122,9 +163,9 @@ function getFilesToDelete(
   fromFiles: Set<string>,
   toFiles: Set<string>,
 ): Set<Config> {
-  const fromFilesRelativePaths = new Set(fromFiles.values().map((file) =>
-    getRelativePath(config.from, file)
-  ));
+  const fromFilesRelativePaths = new Set(
+    fromFiles.values().map((file) => getRelativePath(config.from, file)),
+  );
 
   const filesToDelete: Set<Config> = new Set<Config>();
 
@@ -135,7 +176,7 @@ function getFilesToDelete(
       filesToDelete.add({
         from: "",
         to: file,
-        result: "file not exsists in source",
+        reason: "delete - file not exsists in source",
       });
     }
   }
@@ -148,9 +189,9 @@ async function getFilesToCopy(
   fromFiles: Set<string>,
   toFiles: Set<string>,
 ): Promise<Set<Config>> {
-  const toFilesRelativePaths = new Set(toFiles.values().map((file) =>
-    getRelativePath(config.to, file)
-  ));
+  const toFilesRelativePaths = new Set(
+    toFiles.values().map((file) => getRelativePath(config.to, file)),
+  );
 
   const filesToCopy: Set<Config> = new Set<Config>();
 
@@ -161,16 +202,16 @@ async function getFilesToCopy(
       filesToCopy.add({
         from: file,
         to: config.to + fileRelativePath,
-        result: "copy - file not exist in destination",
+        reason: "copy - file not exist in destination",
       });
     } else if (
       (await Deno.stat(file)).size !==
-      (await Deno.stat(config.to + fileRelativePath)).size
+        (await Deno.stat(config.to + fileRelativePath)).size
     ) {
       filesToCopy.add({
         from: file,
         to: config.to + fileRelativePath,
-        result: "copy - bytes not match",
+        reason: "copy - bytes not match",
       });
     }
   }
@@ -184,22 +225,26 @@ function getRelativePath(base: string, path: string): string {
   return relativePath;
 }
 
-function expandEnvironmentVariables(path: string, divider: string, variableMarker: string): string {
-  if(!path.includes(variableMarker))
+function expandEnvironmentVariables(
+  path: string,
+  divider: string,
+  variableMarker: string,
+): string {
+  if (!path.includes(variableMarker)) {
     return path;
-  
+  }
+
   const variableNames = path.split(divider);
   path = "";
 
-  for(const name of variableNames) {
-    path += 
-      (name.includes(variableMarker) ? 
-        Deno.env.get(name.replaceAll(variableMarker, "")) :
-        name) + divider
+  for (const name of variableNames) {
+    path += (name.includes(variableMarker)
+      ? Deno.env.get(name.replaceAll(variableMarker, ""))
+      : name) + divider;
   }
 
-  path = path.slice(0, path.length-1)
-  
+  path = path.slice(0, path.length - 1);
+
   return path;
 }
 
@@ -209,13 +254,13 @@ async function getCleanPath(path: string): Promise<string> {
 
   path = path.replaceAll(wrongDivider, conventDivider);
   path = expandEnvironmentVariables(path, conventDivider, "%")
-          .replaceAll(wrongDivider, conventDivider);
+    .replaceAll(wrongDivider, conventDivider);
 
   if (
-      await exists(path) && 
-      (await Deno.stat(path)).isDirectory && 
-      path.at(-1) !== conventDivider
-    ) path += conventDivider;
+    await exists(path) &&
+    (await Deno.stat(path)).isDirectory &&
+    path.at(-1) !== conventDivider
+  ) path += conventDivider;
 
   return path;
 }
@@ -256,14 +301,6 @@ function validateConfigs(syncConfig: object): void {
   }
 }
 
-function getSyncPromise(el: Config): Promise<void> {
-  if (el === null) {
-    return Promise.resolve();
-  }
-
-  return syncDirectories(el);
-}
-
 async function getFilePathsFromDirRecursively(
   path: string,
 ): Promise<Set<string>> {
@@ -280,7 +317,7 @@ async function getFilePathsFromDirRecursively(
 }
 
 async function getNotExistedDirs(files: Set<string>): Promise<Set<string>> {
-  const notExistedDirs : Set<string> = new Set<string>();
+  const notExistedDirs: Set<string> = new Set<string>();
 
   for (const file of files) {
     const dir = file.slice(0, file.lastIndexOf("/"));
@@ -305,7 +342,7 @@ if (import.meta.main) {
       {
         from: await getCleanPath(Deno.args[0]),
         to: await getCleanPath(Deno.args[1]),
-        result: "run from CLI",
+        reason: "run from CLI",
       },
     ];
     fromCLI = true;
@@ -314,15 +351,19 @@ if (import.meta.main) {
   validateConfigs(syncConfigs);
 
   for (const i in syncConfigs) {
-    await getSyncPromise(syncConfigs[i]);
+    await (syncConfigs[i] !== null
+      ? syncDirectories(syncConfigs[i])
+      : Promise.resolve());
+
+    console.clear();
   }
 
-  const timeSpan = (Date.now() - startTime);
+  const timeSpan = Date.now() - startTime;
   const minutes = Math.floor(timeSpan / (1000 * 60));
-  const seconds = (timeSpan - minutes * (1000 * 60))/1000;
-  console.log(`\n\nCompleted in ${minutes}min ${seconds}sec\n\n`);
+  const seconds = (timeSpan - minutes * (1000 * 60)) / 1000;
+  console.log(`\x1b[FSync completed in ${minutes}min ${seconds}sec\n`);
 
   if (!fromCLI) {
-    alert("Press enter to exit...");
+    alert("Press to exit");
   }
 }
